@@ -20,8 +20,14 @@ def download_image(file_url):
         return '',''
     else:
         file_name_from_web = urllib.parse.urlsplit(file_url)[2].split('/')[-1]
-        image_type = i.headers['Content-Type'].split('/')[1]  # file_name.split('.')[1]
-        image_extension = "." + ("jpg" if image_type == "jpeg" else image_type)
+        ext_from_url = file_name_from_web.split(".")[-1]
+        content_type = i.headers.get('Content-Type')
+        image_type = None
+        if content_type:
+            image_type = content_type.split('/')[1]  # file_name.split('.')[1]
+        else:
+            image_type = ext_from_url
+        image_extension = "." + ('jpg' if image_type == 'jpeg' else image_type)
         # print(file_name, image_type)
         if image_type in image_type_list and i.status_code == requests.codes.ok:
             with iopen("tmp" + image_extension, 'wb') as file:
