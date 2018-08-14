@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup, Comment
 import re
 import unicodedata
 import json
+import os
 
 
 def remove_html_tags(input_text):
@@ -18,6 +19,7 @@ main_content = main_content[0]
 # print(main_content)
 section_list = main_content.select('div[id^=หมวด-]')
 herb_json_array = []
+all_herb_names = set()
 for section in section_list:
     # print(section)
     ul_children = section.ul.findChildren()
@@ -25,24 +27,34 @@ for section in section_list:
         for a in ul_child.find_all('a', href=True):
             if a.text:
                 herb_object = {}
+                herb_object['thaiNameList'] = []
                 herb_object['sourceUrl'] = med_thai_uri + a["href"]
-                herb_object['thaiName1'] = a.text
                 herb_full_name = a.parent.text
                 cleaned_herb_full_name = re.sub(r'\[[^)]*\]', '', herb_full_name)  # remove square brackets []
-                herb_name2_re = re.search(r'\((.*?)\)', cleaned_herb_full_name)
-                # print(herb_name1, end='')
-                if herb_name2_re:
-                    herb_object['thaiName2'] = herb_name2_re.group(1)
-                    # print("(" + herb_name2 + ")", end='')
-                else:
-                    herb_object['thaiName2'] = ""
-                herb_json_array.append(herb_object)
+                if cleaned_herb_full_name.find(" (") == -1:  # not found ()
+                    herb_object['thaiNameList'].append(cleaned_herb_full_name)
+                else:  # found () extra name(s)
+                    herb_object['thaiNameList'].append(cleaned_herb_full_name[:cleaned_herb_full_name.find(" (")])
+                    herb_name_extra_re = re.search(r'\((.*?)\)', cleaned_herb_full_name)
+                    herb_name_extra = herb_name_extra_re.group(1)
+                    herb_object['thaiNameList'] = herb_object['thaiNameList'] + [x.strip() for x in herb_name_extra.split(',')]
+                # print(herb_object['thaiNameList'])
+                existed = True
+                for name in herb_object['thaiNameList']:
+                   if name not in all_herb_names:
+                       existed = False
+                       all_herb_names.add(name)
+                if not existed:
+                    herb_json_array.append(herb_object)
 print("#Total herbs from medthai = " + str(len(herb_json_array)))
 
+# for herb in herb_json_array:
+#     print(herb)
+
 empty_herb_list = []
-fetch_count = 1
+herb_number = 1
 for herb_object in herb_json_array:
-    print(str(fetch_count) + ": " + herb_object['thaiName1'] + " fetching data from " + herb_object['sourceUrl'])
+    print(str(herb_number) + ": " + herb_object['thaiNameList'][0] + " fetching data from " + herb_object['sourceUrl'])
     response = requests.get(herb_object['sourceUrl'])
     herb_soup = BeautifulSoup(response.content.decode('utf-8', 'ignore'), "html.parser")
     # print(soup.prettify())
@@ -107,14 +119,14 @@ for herb_object in herb_json_array:
     if (not benefit_list) and (not property_list):
         empty_herb_list.append(herb_object)
 
+    herb_object['herbId'] = herb_number
     herb_object['benefitList'] = benefit_list
     herb_object['propertyList'] = property_list
-    fetch_count = fetch_count + 1
-    break
+    herb_number = herb_number + 1
 
-with open('herb_data.json', 'w', encoding="utf-8") as outfile:
+with open(os.path.join('data', 'herb_data.json'), 'w', encoding="utf-8") as outfile:
     json.dump(herb_json_array, outfile, ensure_ascii=False)
-with open('herb_data_empty.json', 'w', encoding="utf-8") as outfile:
+with open(os.path.join('data', 'herb_data_empty.json'), 'w', encoding="utf-8") as outfile:
     json.dump(empty_herb_list, outfile, ensure_ascii=False)
 
 # for element in soup.findAll(lambda tag: tag.name in ['head', 'script', 'link', 'meta', 'style']):
