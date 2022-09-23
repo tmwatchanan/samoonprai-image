@@ -34,7 +34,7 @@ numpy==1.14.5
 pandocfilters==1.4.2
 pickleshare==0.7.4
 prompt-toolkit==1.0.15
-protobuf==3.6.0
+protobuf==3.18.3
 Pygments==2.2.0
 python-dateutil==2.7.3
 pywinpty==0.5.4
